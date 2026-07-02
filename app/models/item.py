@@ -1,12 +1,13 @@
 from typing import Optional
 
 from decimal import Decimal
+from pydantic import BaseModel
 
 from models.base import BaseReadSchema, BaseCreateSchema, BaseUpdateSchema
 
 
 class ItemRead(BaseReadSchema):
-    category_id: int | None
+    category: str | None
     name: str
     description: str | None
     price: Decimal
@@ -14,7 +15,15 @@ class ItemRead(BaseReadSchema):
 
 
 class ItemCreate(BaseCreateSchema):
-    category_id: int | None = None
+    category: str | None = None
+    name: str
+    description: str | None = None
+    price: Decimal
+    active: bool
+
+
+class ItemCreateRequest(BaseModel):
+    category: str | None = None
     name: str
     description: str | None = None
     price: Decimal
@@ -23,7 +32,7 @@ class ItemCreate(BaseCreateSchema):
 
 class ItemUpdate(BaseUpdateSchema):
     # Use self.model_dump(exclude_unset=True) to include only explicitly provided values.
-    category_id: Optional[int] = None
+    category: Optional[str] = None
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None

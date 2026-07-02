@@ -6,7 +6,6 @@ OrderStatus = Literal["pending", "ready", "withdrawn", "cancelled"]
 
 
 class OrderRead(BaseReadSchema):
-    id: int
     user_id: int
     status: OrderStatus
 

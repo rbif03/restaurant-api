@@ -1,6 +1,6 @@
 import re
 from typing import Annotated, Optional
-from pydantic import AfterValidator, EmailStr
+from pydantic import AfterValidator, BaseModel, EmailStr
 
 from models.base import BaseReadSchema, BaseCreateSchema, BaseUpdateSchema
 
@@ -56,6 +56,13 @@ class UserCreate(BaseCreateSchema):
     name: FullName
     phone: PhoneNumber
     hashed_password: str
+
+
+class UserCreateRequest(BaseModel):
+    email: EmailStr
+    name: FullName
+    phone: PhoneNumber
+    password: str
 
 
 class UserUpdate(BaseUpdateSchema):
