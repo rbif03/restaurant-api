@@ -1,0 +1,1 @@
+CREATE TYPE order_status AS ENUM ('pending', 'ready', 'withdrawn', 'cancelled');
