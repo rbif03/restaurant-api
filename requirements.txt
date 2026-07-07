@@ -1,0 +1,5 @@
+fastapi[standard]
+pwdlib[argon2]
+pyjwt
+pydantic==2.13.4
+psycopg[binary]
