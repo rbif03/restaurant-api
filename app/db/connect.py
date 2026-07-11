@@ -3,7 +3,7 @@ import os
 
 import boto3
 from dotenv import load_dotenv
-import psycopg
+from fastapi import Request
 
 load_dotenv()
 
@@ -13,7 +13,7 @@ rds_client = boto3.client("rds")
 def get_connstr() -> str:
     ENDPOINT = os.getenv("ENDPOINT")
     PORT = os.getenv("PORT")
-    USER = os.getenv("USER")
+    USER = os.getenv("USERNAME")
     REGION = os.getenv("REGION")
     DBNAME = os.getenv("DBNAME")
 
@@ -24,21 +24,12 @@ def get_connstr() -> str:
     connstr = (
         f"host={ENDPOINT} port={PORT} dbname={DBNAME} user={USER} password={token}"
     )
-    print("connstr generated")
+    print("Connection string obtained.")
     return connstr
 
 
-async def get_db():
-    print("get_db called")
-    connstr = await asyncio.to_thread(get_connstr)
-    db = await psycopg.AsyncConnection.connect(connstr)
-    print("connection established")
-    try:
-        yield db
-    finally:
-        print("db connection closure started")
-        await db.close()
-        print("db connection closed")
+def get_db_conn(request: Request):
+    return request.app.state.db_conn
 
 
 if __name__ == "__main__":

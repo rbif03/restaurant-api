@@ -8,3 +8,5 @@ CREATE TABLE cart_items (
 );
 
 CREATE INDEX idx_cart_items_user_id ON cart_items (user_id);
+
+ALTER TABLE cart_items ADD CONSTRAINT unique_user_item UNIQUE (user_id, item_id);

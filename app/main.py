@@ -1,10 +1,18 @@
 from fastapi import FastAPI
+import psycopg
 
 from api_routers.cart import router as cart_router
+from db.connect import get_connstr
+from db.queries.cart import get_clean_users_cart_query
+
+conn_str = get_connstr()
+db_conn = psycopg.connect(conn_str)
+print("DB connection established.")
 
 
 def handler(event, context):
     app = FastAPI()
+    app.state.db_conn = db_conn
     app.include_router(cart_router, prefix="/cart")
 
     import uvicorn

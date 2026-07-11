@@ -11,7 +11,6 @@ class ItemRead(BaseReadSchema):
     name: str
     description: str | None
     price: Decimal
-    active: bool
 
 
 class ItemCreate(BaseCreateSchema):
@@ -19,7 +18,6 @@ class ItemCreate(BaseCreateSchema):
     name: str
     description: str | None = None
     price: Decimal
-    active: bool
 
 
 class ItemCreateRequest(BaseModel):
@@ -27,7 +25,6 @@ class ItemCreateRequest(BaseModel):
     name: str
     description: str | None = None
     price: Decimal
-    active: bool
 
 
 class ItemUpdate(BaseUpdateSchema):
@@ -36,4 +33,3 @@ class ItemUpdate(BaseUpdateSchema):
     name: Optional[str] = None
     description: Optional[str] = None
     price: Optional[Decimal] = None
-    active: Optional[bool] = None
