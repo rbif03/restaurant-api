@@ -3,7 +3,6 @@ import psycopg
 
 from api_routers.cart import router as cart_router
 from db.connect import get_connstr
-from db.queries.cart import get_clean_users_cart_query
 
 conn_str = get_connstr()
 db_conn = psycopg.connect(conn_str)

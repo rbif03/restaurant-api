@@ -1,22 +1,56 @@
 from typing import List
 
+from psycopg import Connection
+from psycopg.errors import ForeignKeyViolation, UniqueViolation
+from psycopg.rows import dict_row
 from pypika import Table
 
 from db.query_builder import PGQuery, prefix_fields_with_table
-from models.cart_item import CartItemCreate, CartItemUpdate, CartItemRead
+from db.exceptions import (
+    DatabaseError,
+    ItemAlreadyInCartError,
+    ItemNotInCartError,
+    NonExistingItemError,
+)
+from models.cart_item import (
+    CartItemCreate,
+    CartItemUpdate,
+    CartItemRead,
+    CartItemReadWithItem,
+)
 from models.item import ItemRead
-from models.order import OrderCreate
-from models.order_item import OrderItemCreate
+from models.order import OrderCreate, OrderRead
+from models.order_item import OrderItemCreate, OrderItemRead
 
 
-def get_insert_item_to_cart_query(data: CartItemCreate):
+def insert_item_to_cart(db: Connection, data: CartItemCreate) -> CartItemRead:
     cart_items = Table("cart_items")
-    fields, values = zip(*data.model_dump())
+    print(data.model_dump())
+    fields, values = zip(*data.model_dump().items())
     query = PGQuery.into(cart_items).columns(*fields).insert(*values).returning("*")
-    return query
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchone()
+            db.commit()
+            return CartItemRead(**result)
+
+    except UniqueViolation as e:
+        raise ItemAlreadyInCartError(str(e))
+
+    except ForeignKeyViolation as e:
+        # This exception can occur if a non-existent user or item is provided.
+        # However, the authentication schema validates that the user exists,
+        # so this should only be raised when a non-existent item is passed.
+        raise NonExistingItemError(str(e))
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(e)
 
 
-def get_update_item_in_cart_query(user_id: int, item_id: int, data: CartItemUpdate):
+def update_cart_item(
+    db: Connection, user_id: int, item_id: int, data: CartItemUpdate
+) -> CartItemRead:
     cart_items = Table("cart_items")
     query = (
         PGQuery.update(cart_items)
@@ -24,10 +58,25 @@ def get_update_item_in_cart_query(user_id: int, item_id: int, data: CartItemUpda
         .where((cart_items.user_id == user_id) & (cart_items.item_id == item_id))
         .returning("*")
     )
-    return query
+
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchone()
+            db.commit()
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(str(e))
+
+    if not result:
+        raise ItemNotInCartError("")
+
+    return CartItemRead(**result)
 
 
-def get_select_all_cart_items_with_item_info_query(user_id: int):
+def get_cart_items_with_item_data(
+    db: Connection, user_id: int
+) -> List[CartItemReadWithItem]:
     cart_items = Table("cart_items")
     cart_items_fields = prefix_fields_with_table(
         cart_items, CartItemRead.model_fields.keys()
@@ -45,32 +94,93 @@ def get_select_all_cart_items_with_item_info_query(user_id: int):
         .on(cart_items.item_id == items.id)
         .where(cart_items.user_id == user_id)
     )
-    return query
+
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchall()
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(str(e))
+
+    return [CartItemReadWithItem.from_prefixed_row(row) for row in result]
 
 
-def get_insert_new_pending_order_query(user_id: int):
+def create_new_pending_order(
+    db: Connection, user_id: int, commit: bool = False
+) -> OrderRead:
     orders = Table("orders")
     data = OrderCreate(user_id=user_id, status="pending")
     fields, values = zip(*data.model_dump().items())
     query = PGQuery.into(orders).columns(fields).insert(values).returning("*")
-    return query
+
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchone()
+            if commit:
+                db.commit()
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(str(e))
+
+    return OrderRead(**result)
 
 
-def get_select_all_cart_items_query(user_id: int):
+def get_cart_items(db: Connection, user_id: int) -> List[CartItemRead]:
     cart_items = Table("cart_items")
     query = PGQuery.from_(cart_items).select("*").where(cart_items.user_id == user_id)
-    return query
+
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchall()
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(str(e))
+
+    return [CartItemRead(**row) for row in result]
 
 
-def get_add_items_in_cart_to_order_query(data: List[OrderItemCreate]):
+def attribute_items_to_order(
+    db: Connection, data: List[OrderItemCreate], commit: bool = False
+) -> List[OrderItemRead]:
     order_items = Table("order_items")
     fields = list(OrderItemCreate.model_fields.keys())
     insert_data = [tuple([getattr(obj, field) for field in fields]) for obj in data]
-    query = PGQuery.into(order_items).columns(fields).insert(insert_data).returning("*")
-    return query
+    query = (
+        PGQuery.into(order_items).columns(fields).insert(*insert_data).returning("*")
+    )
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchall()
+            if commit:
+                db.commit()
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(str(e))
+
+    return [OrderItemRead(**row) for row in result]
 
 
-def get_clean_users_cart_query(user_id: int):
+def clear_cart(db: Connection, user_id: int, commit: bool = False):
     cart_items = Table("cart_items")
-    query = PGQuery.from_(cart_items).delete().where(cart_items.user_id == user_id)
-    return query
+    query = (
+        PGQuery.from_(cart_items)
+        .delete()
+        .where(cart_items.user_id == user_id)
+        .returning("*")
+    )
+    print("clear cart query:\n", str(query))
+    try:
+        with db.cursor(row_factory=dict_row) as cur:
+            result = cur.execute(str(query)).fetchall()
+            if commit:
+                db.commit()
+
+    except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        raise DatabaseError(str(e))
+
+    return

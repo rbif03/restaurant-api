@@ -1,6 +1,9 @@
-from typing import Literal, Optional
+from typing import Literal, List, Optional
+
+from pydantic import BaseModel
 
 from models.base import BaseReadSchema, BaseCreateSchema, BaseUpdateSchema
+from models.order_item import OrderItemRead
 
 OrderStatus = Literal["pending", "ready", "withdrawn", "cancelled"]
 
@@ -17,3 +20,8 @@ class OrderCreate(BaseCreateSchema):
 
 class OrderUpdate(BaseUpdateSchema):
     status: Optional[OrderStatus] = None
+
+
+class OrderExtended(BaseModel):
+    order: OrderRead
+    order_items: List[OrderItemRead]

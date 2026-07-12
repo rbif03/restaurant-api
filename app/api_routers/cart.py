@@ -2,12 +2,24 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from psycopg import Connection
-from psycopg.rows import dict_row
-from psycopg.errors import UniqueViolation
-from pypika import Table
 
 from db.connect import get_db_conn
-from db.query_builder import PGQuery, prefix_fields_with_table
+from db.exceptions import (
+    DatabaseError,
+    EmptyCartError,
+    ItemAlreadyInCartError,
+    ItemNotInCartError,
+    NonExistingItemError,
+)
+from db.queries.cart import (
+    insert_item_to_cart,
+    update_cart_item,
+    get_cart_items,
+    create_new_pending_order,
+    attribute_items_to_order,
+    clear_cart,
+    get_cart_items_with_item_data,
+)
 from models.cart_item import (
     CartItemCreate,
     CartItemCreateRequest,
@@ -16,8 +28,7 @@ from models.cart_item import (
     CartItemUpdate,
     CartItemUpdateRequest,
 )
-from models.item import ItemRead
-from models.order import OrderCreate, OrderRead
+from models.order import OrderExtended
 from models.order_item import OrderItemCreate
 
 router = APIRouter()
@@ -27,103 +38,103 @@ router = APIRouter()
 def add_item_to_cart(
     body: CartItemCreateRequest,
     user_id: int,
-    db_conn: Connection = Depends(get_db_conn),
+    db: Connection = Depends(get_db_conn),
 ) -> CartItemRead:
-    cart_item_data = CartItemCreate(user_id=user_id, **body.model_dump()).model_dump()
-    cols, vals = zip(*cart_item_data.items())
 
-    cart_items = Table("cart_items")
-    query = PGQuery.into(cart_items).columns(*cols).insert(*vals).returning("*")
-
+    cart_item_data = CartItemCreate(user_id=user_id, **body.model_dump())
     try:
-        with db_conn.cursor(row_factory=dict_row) as cur:
-            r = cur.execute(str(query)).fetchone()
-            db_conn.commit()
+        result = insert_item_to_cart(db, cart_item_data)
+        return result
 
-    except UniqueViolation as e:
+    except ItemAlreadyInCartError:
         raise HTTPException(
             status_code=409,
             detail=f"Item already exists in user's cart. Use PATCH /cart to update quantity.",
         )
 
-    return CartItemRead(**r)
+    except NonExistingItemError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Couldn't add item to cart: item not found.",
+        )
+
+    except DatabaseError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected database error occured. More information: {e}",
+        )
 
 
 @router.patch("/{user_id}", status_code=200)
-def update_cart_item(
+def patch_cart_item(
     body: CartItemUpdateRequest,
     user_id: int,
-    db_conn: Connection = Depends(get_db_conn),
-):
-    update_data = CartItemUpdate(user_id=user_id, **body.model_dump()).model_dump()
-    cart_items = Table("cart_items")
-    query = (
-        PGQuery.update(cart_items)
-        .setmany(update_data)
-        .where((cart_items.user_id == user_id) & (cart_items.item_id == body.item_id))
-        .returning("*")
-    )
+    db: Connection = Depends(get_db_conn),
+) -> CartItemRead:
+    update_data = CartItemUpdate(**body.model_dump())
+    item_id = body.item_id
 
-    with db_conn.cursor(row_factory=dict_row) as cur:
-        r = cur.execute(str(query)).fetchone()
-        db_conn.commit()
+    try:
+        result = update_cart_item(db, user_id, item_id, update_data)
+        return result
 
-    if r is None:
+    except ItemNotInCartError:
         raise HTTPException(
-            status_code=404,
-            detail=f"Item {body.item_id} was not found in user's cart.",
+            status_code=409,
+            detail=f"Item with id={item_id} is not in user's cart, therefore can't be patched.",
         )
-    return r
+
+    except DatabaseError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected database error occured. More information: {e}",
+        )
 
 
 @router.post("/checkout/{user_id}")
-def checkout_cart(user_id: int, db_conn: Connection = Depends(get_db_conn)):
-    # Create a new order for the user
-    orders = Table("orders")
-    order_data = OrderCreate(user_id=user_id, status="pending").model_dump()
-    order_cols, order_vals = zip(*order_data.items())
-    create_order_query = (
-        PGQuery.into(orders).columns(*order_cols).insert(*order_vals).returning("*")
-    )
-    with db_conn.cursor(row_factory=dict_row) as cur:
-        create_order_r = cur.execute(str(create_order_query)).fetchone()
-        order_obj = OrderRead(**create_order_r)
+def checkout_cart(user_id: int, db: Connection = Depends(get_db_conn)) -> OrderExtended:
+    try:
+        cart_items = get_cart_items(db, user_id)
+        if not cart_items:
+            raise EmptyCartError
 
-    # Insert items from the cart into the order_items table
-    cart_items = Table("cart_items")
-    order_items = Table("order_items")
-    order_items_fields = OrderItemCreate.model_fields.keys()
+        order = create_new_pending_order(db, user_id)
+        order_items = [
+            OrderItemCreate(order_id=order.id, item_id=item.item_id, amount=item.amount)
+            for item in cart_items
+        ]
+
+        new_order_items = attribute_items_to_order(db, order_items)
+        clear_cart(db, user_id)
+        db.commit()
+        return OrderExtended(order=order, order_items=new_order_items)
+
+    except EmptyCartError as e:
+        raise HTTPException(status_code=409, detail="Can't checkout an empty cart.")
+
+    except DatabaseError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected database error occured. More information: {e}",
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected error occured (probably when commiting db changes). More information: {e}",
+        )
 
 
 @router.get("/{user_id}", status_code=200)
 def list_cart_items(
-    user_id: int, db_conn: Connection = Depends(get_db_conn)
+    user_id: int, db: Connection = Depends(get_db_conn)
 ) -> List[CartItemReadWithItem]:
-    # cart_items_fields examples: 'cart_items.id', 'cart_items.item_id'
-    cart_items = Table("cart_items")
-    cart_items_fields = prefix_fields_with_table(cart_items, CartItemRead.model_fields)
+    try:
+        result = get_cart_items_with_item_data(db, user_id)
+        return result
 
-    # items_fields examples: 'items.id', 'items.name'
-    items = Table("items")
-    items_fields = prefix_fields_with_table(items, ItemRead.model_fields)
-
-    # Rows returned by the query below will have both the info of cart_items and items
-    query = (
-        PGQuery.from_(cart_items)
-        .select(*cart_items_fields, *items_fields)
-        .left_join(items)
-        .on(cart_items.item_id == items.id)
-        .where(cart_items.user_id == user_id)
-    )
-
-    with db_conn.cursor(row_factory=dict_row) as cur:
-        r = cur.execute(str(query)).fetchall()
-
-    if not r:
-        return []
-
-    result = []
-    for row in r:
-        result.append(CartItemReadWithItem.from_prefixed_row(row))
-
-    return result
+    except DatabaseError as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected database error occured. More information: {e}",
+        )
