@@ -44,7 +44,13 @@ PhoneNumber = Annotated[str, AfterValidator(validate_br_phone)]
 FullName = Annotated[str, AfterValidator(validate_full_name)]
 
 
-class UserRead(BaseReadSchema):
+class UserReadInternal(BaseReadSchema):
+    # This class gets only the basic information about a user (id and admin)
+    # Use this class as often as possible to avoid logging any user data
+    admin: bool
+
+
+class UserRead(UserReadInternal):
     email: EmailStr
     name: FullName
     phone: PhoneNumber
@@ -56,6 +62,7 @@ class UserCreate(BaseCreateSchema):
     name: FullName
     phone: PhoneNumber
     hashed_password: str
+    # Shouldn't be possible to tell if the user is admin in user creation.
 
 
 class UserCreateRequest(BaseModel):
@@ -63,6 +70,7 @@ class UserCreateRequest(BaseModel):
     name: FullName
     phone: PhoneNumber
     password: str
+    # Shouldn't be possible to tell if the user is admin in user creation.
 
 
 class UserUpdate(BaseUpdateSchema):
@@ -70,3 +78,4 @@ class UserUpdate(BaseUpdateSchema):
     name: Optional[FullName] = None
     phone: Optional[PhoneNumber] = None
     hashed_password: Optional[str]
+    # Shouldn't be possible to tell if the user is admin in user creation.

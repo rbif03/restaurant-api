@@ -7,3 +7,5 @@ CREATE TABLE users(
     phone TEXT NOT NULL,
     hashed_password TEXT NOT NULL
 )
+
+ALTER TABLE users ADD admin BOOLEAN DEFAULT false;
