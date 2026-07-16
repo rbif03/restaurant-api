@@ -89,23 +89,26 @@ def create_access_token(user: UserReadInternal) -> str:
 
 
 def get_user_from_token(token: str = Depends(oauth2_scheme)) -> UserReadInternal:
-    # TODO: raise HTTP exceptions only inside routes
-    credentials_exception = HTTPException(
-        status_code=401,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    # This function is called before the route code, so it's reasonable raise http exceptions
     try:
         payload = jwt.decode(
             token, os.getenv("JWT_SECRET_KEY"), algorithms=[os.getenv("JWT_ALGORITHM")]
         )
         user_id = payload.get("sub")
         if user_id is None:
-            raise InvalidTokenPayload("Payload does not contain the 'sub' field.")
+            raise HTTPException(
+                status_code=401,
+                detail="Could not validate credentials: payload does not contain the 'sub' field.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         return UserReadInternal(
             id=payload.get("sub"), admin=payload.get("admin", False)
         )
 
     except InvalidTokenError as e:
-        raise e
+        raise HTTPException(
+            status_code=401,
+            detail="Could not validate credentials: InvalidTokenError",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
