@@ -16,3 +16,7 @@ class EmptyCartError(Exception):
 
 class NonExistingItemError(Exception):
     pass
+
+
+class OrderAccessDeniedError(Exception):
+    pass
