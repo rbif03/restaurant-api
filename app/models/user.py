@@ -44,13 +44,13 @@ PhoneNumber = Annotated[str, AfterValidator(validate_br_phone)]
 FullName = Annotated[str, AfterValidator(validate_full_name)]
 
 
-class UserReadInternal(BaseReadSchema):
-    # This class gets only the basic information about a user (id and admin)
-    # Use this class as often as possible to avoid logging any user data
+class UserReadInternal(BaseModel):
+    id: int
     admin: bool
 
 
-class UserRead(UserReadInternal):
+class UserRead(BaseReadSchema):
+    admin: bool
     email: EmailStr
     name: FullName
     phone: PhoneNumber
