@@ -9,3 +9,5 @@ CREATE TABLE users(
 )
 
 ALTER TABLE users ADD admin BOOLEAN DEFAULT false;
+
+-- TODO: make email and phone unique
