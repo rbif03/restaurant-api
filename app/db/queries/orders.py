@@ -1,12 +1,15 @@
-from typing import List
+from datetime import datetime
+from typing import List, Optional
 
 from psycopg import Connection
 from psycopg.rows import dict_row
+from pydantic import PositiveInt
 from pypika import Table
 from pypika import Order as SortOrder
+from pypika.terms import ValueWrapper
 
 from db.query_builder import PGQuery, prefix_fields_with_table
-from db.exceptions import DatabaseError, OrderAccessDeniedError
+from db.exceptions import DatabaseError, OrderNotFoundError
 from models.item import ItemRead
 from models.order import OrderRead, OrderStatus
 from models.order_item import OrderItemRead, OrderItemReadExtended
@@ -30,13 +33,16 @@ def get_user_orders(db: Connection, user_id: int) -> List[OrderRead]:
         raise DatabaseError(str(e))
 
 
-def get_orders_by_status(db: Connection, status: OrderStatus) -> List[OrderRead]:
+def get_orders_by_status(
+    db: Connection, status: OrderStatus, hours_ago: Optional[PositiveInt]
+) -> List[OrderRead]:
+    base_time = 0 if hours_ago is None else int(datetime.now()) - 3600 * hours_ago
     orders = Table("orders")
     query = (
         PGQuery.from_(orders)
         .select("*")
-        .where(orders.status == status)
-        .orderby(orders.created_at, order=SortOrder.desc)
+        .where((orders.status == status) & (orders.created_at >= base_time))
+        .orderby(orders.created_at, order=SortOrder.asc)
     )
 
     try:
@@ -48,48 +54,67 @@ def get_orders_by_status(db: Connection, status: OrderStatus) -> List[OrderRead]
         raise DatabaseError(str(e))
 
 
-def validate_order_owner(db: Connection, order_id: int, user_id: int) -> bool:
+def update_order_status(
+    db: Connection, order_id: int, status: OrderStatus
+) -> OrderRead:
+    """
+    This function is supposed to be used by admin routes only, since it doesn't validate the owner of the order.
+
+    Raises:
+        OrderNotFoundError: if the order id passed is not in the database.
+        DatabaseError: if an unexpected database error happens.
+    """
     orders = Table("orders")
-    query = PGQuery.from_(orders).select("*").where(orders.id == order_id)
+    query = (
+        PGQuery.update(orders)
+        .set(orders.status, status)
+        .where(orders.id == order_id)
+        .returning("*")
+    )
     try:
         with db.cursor(row_factory=dict_row) as cur:
-            result = cur.execute(str(query)).fetchone()
-            order = OrderRead(**result)
+            result = cur.execute(query).fetchone()
+        if not result:
+            raise OrderNotFoundError(f"Order {order_id} not found.")
+
+        return OrderRead(**result)
 
     except Exception as e:
         raise DatabaseError(str(e))
 
-    # TODO: once auth is setup, all the user_id will be replaced by a UserReadObj
-    if order.user_id != user_id:
-        raise OrderAccessDeniedError("Order doesn't belong to user.")
-
-    return True
-
 
 def get_order_items_by_order_id(
-    db: Connection, user_id: int, order_id: int, admin=False
+    db: Connection, order_id: int, user_id: int, user_admin: bool
 ) -> List[OrderItemReadExtended]:
-    # Validation: does the order belong to the user
-    user_allowed = validate_order_owner(db, order_id, user_id)
     order_items = Table("order_items")
     order_items_fields = prefix_fields_with_table(
         order_items, OrderItemRead.model_fields.keys()
     )
     items = Table("items")
     items_fields = prefix_fields_with_table(items, ItemRead.model_fields.keys())
-
+    orders = Table("orders")
     query = (
         PGQuery.from_(order_items)
         .select(*order_items_fields, *items_fields)
         .left_join(items)
         .on(order_items.item_id == items.id)
-        .where(order_items.order_id == order_id)
+        .left_join(orders)
+        .on(order_items.order_id == orders.id)
+        .where(
+            (order_items.order_id == order_id)
+            & ((orders.user_id == user_id) | ValueWrapper(user_admin))
+        )
     )
 
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchall()
+            if not result:
+                raise OrderNotFoundError("Order not found or doesn't belong to user.")
             return [OrderItemReadExtended(**order_item) for order_item in result]
+
+    except OrderNotFoundError as e:
+        raise e
 
     except Exception as e:
         raise DatabaseError(str(e))

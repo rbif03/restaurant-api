@@ -112,3 +112,13 @@ def get_user_from_token(token: str = Depends(oauth2_scheme)) -> UserReadInternal
             detail="Could not validate credentials: InvalidTokenError",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+def get_admin_user(admin_user: UserReadInternal = Depends(get_user_from_token)):
+    if admin_user.admin == True:
+        return admin_user
+    else:
+        raise HTTPException(
+            status_code=403,
+            detail="Must be an admin to access this endpoint.",
+        )

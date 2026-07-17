@@ -18,5 +18,5 @@ class NonExistingItemError(Exception):
     pass
 
 
-class OrderAccessDeniedError(Exception):
+class OrderNotFoundError(Exception):
     pass
