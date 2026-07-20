@@ -35,12 +35,14 @@ def insert_item_to_cart(db: Connection, data: CartItemCreate) -> CartItemRead:
             return CartItemRead(**result)
 
     except UniqueViolation as e:
+        db.rollback()
         raise ItemAlreadyInCartError(str(e))
 
     except ForeignKeyViolation as e:
         # This exception can occur if a non-existent user or item is provided.
         # However, the authentication schema validates that the user exists,
         # so this should only be raised when a non-existent item is passed.
+        db.rollback()
         raise NonExistingItemError(str(e))
 
     except Exception as e:
@@ -69,6 +71,7 @@ def update_cart_item(
         raise DatabaseError(str(e))
 
     if not result:
+        # By testing, this doesn't need a rollback
         raise ItemNotInCartError("")
 
     return CartItemRead(**result)

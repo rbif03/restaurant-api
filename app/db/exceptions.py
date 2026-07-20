@@ -2,6 +2,10 @@ class DatabaseError(Exception):
     pass
 
 
+class ItemNotFoundError(Exception):
+    pass
+
+
 class ItemAlreadyInCartError(Exception):
     pass
 
@@ -19,4 +23,8 @@ class NonExistingItemError(Exception):
 
 
 class OrderNotFoundError(Exception):
+    pass
+
+
+class UsernameAlreadyTakenError(Exception):
     pass

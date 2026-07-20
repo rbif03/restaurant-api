@@ -1,42 +1,43 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from psycopg import Connection
 from psycopg.rows import dict_row
 from pypika import PostgreSQLQuery, Table
 
 from db.connect import get_db_conn
-from models.item import ItemCreate, ItemRead, ItemUpdate
+from db.exceptions import DatabaseError, ItemNotFoundError
+from db.queries.items import get_items, get_item_by_id
+from models.item import ItemRead
 
 router = APIRouter()
 
 
 @router.get("/", status_code=200)
-def list_items(
-    category=None, db_conn: Connection = Depends(get_db_conn)
-) -> list[ItemRead]:
-    items = Table("items")
-    query = (
-        PostgreSQLQuery.from_(items)
-        .select("*")
-        .where((items.category == None) | (items.category == category))
-    )
+def list_items(category=None, db: Connection = Depends(get_db_conn)) -> list[ItemRead]:
+    try:
+        return get_items(db, category)
 
-    with db_conn.cursor(row_factory=dict_row) as cur:
-        r = cur.execute(query).fetchall()
-
-    return r
+    except DatabaseError:
+        raise HTTPException(
+            status_code=500,
+            detail=f"An unexpected database error occured. More information: {e}",
+        )
 
 
 @router.get("/{item_id}", status_code=200)
-def get_item_by_id(
-    item_id: int, db_conn: Connection = Depends(get_db_conn)
-) -> ItemRead:
-    items = Table("items")
-    query = PostgreSQLQuery.from_(items).select("*").where(items.id == item_id)
+def list_item_by_id(item_id: int, db: Connection = Depends(get_db_conn)) -> ItemRead:
+    try:
+        return get_item_by_id(db, item_id)
 
-    with db_conn.cursor(row_factory=dict_row) as cur:
-        r = cur.execute(query).fetchone()
+    except ItemNotFoundError:
+        raise HTTPException(
+            status_code=404, detail=f"Item of id {item_id} not found in database."
+        )
 
-    return r
+    except DatabaseError as e:
+        raise HTTPException(
+            status_code=500,
+            detail="An unexpected database error occured.",
+        )
 
 
 # The routes below can be created later, for now will add items directly to the db

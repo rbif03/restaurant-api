@@ -54,7 +54,7 @@ def get_user_from_db(
     )
     try:
         with db.cursor(row_factory=dict_row) as cur:
-            result = cur.execute(query).fetchone()
+            result = cur.execute(str(query)).fetchone()
 
     except Exception as e:
         raise DatabaseError("Unexpected database error happened.")
@@ -69,6 +69,7 @@ def authenticate_user(db: Connection, username: str, password: str) -> UserReadI
     try:
         user = get_user_from_db(db, username)
     except Exception as e:
+        print(e)
         raise e
 
     if verify_password(password, user.hashed_password):

@@ -109,9 +109,13 @@ def get_order_items_by_order_id(
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchall()
+            print(result)
             if not result:
                 raise OrderNotFoundError("Order not found or doesn't belong to user.")
-            return [OrderItemReadExtended(**order_item) for order_item in result]
+            return [
+                OrderItemReadExtended.from_prefixed_row(order_item)
+                for order_item in result
+            ]
 
     except OrderNotFoundError as e:
         raise e
