@@ -26,7 +26,6 @@ def validate_full_name(value: str) -> str:
     return " ".join(part.capitalize() for part in name_parts)
 
 
-PhoneNumber = Annotated[str, AfterValidator(validate_br_phone)]
 FullName = Annotated[str, AfterValidator(validate_full_name)]
 
 
@@ -54,6 +53,14 @@ class UserCreateRequest(BaseModel):
     name: FullName
     password: str
     # Shouldn't be possible to tell if the user is admin in user creation.
+
+
+class UserCreateResponse(BaseReadSchema):
+    # Response schema for user creation.
+    # Excludes sensitive fields such as the hashed password.
+    admin: bool
+    username: str
+    name: FullName
 
 
 class UserUpdate(BaseUpdateSchema):
