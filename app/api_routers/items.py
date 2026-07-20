@@ -19,7 +19,7 @@ def list_items(category=None, db: Connection = Depends(get_db_conn)) -> list[Ite
     except DatabaseError:
         raise HTTPException(
             status_code=500,
-            detail=f"An unexpected database error occured. More information: {e}",
+            detail=f"An unexpected database error occured.",
         )
 
 
