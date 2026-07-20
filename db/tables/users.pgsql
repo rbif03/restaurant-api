@@ -1,13 +1,11 @@
-CREATE TABLE users(
-	id SERIAL PRIMARY KEY,
-	created_at INT NOT NULL,
-	updated_at INT NOT NULL,
-    email TEXT NOT NULL,
-    name TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    hashed_password TEXT NOT NULL
-)
-
-ALTER TABLE users ADD admin BOOLEAN DEFAULT false;
-
--- TODO: make email and phone unique
+CREATE TABLE public.users (
+	id serial4 NOT NULL,
+	created_at int4 NOT NULL,
+	updated_at int4 NOT NULL,
+	"name" text NOT NULL,
+	hashed_password text NOT NULL,
+	"admin" bool DEFAULT false NOT NULL,
+	username text NOT NULL,
+	CONSTRAINT users_pkey PRIMARY KEY (id),
+	CONSTRAINT users_username_key UNIQUE (username)
+);

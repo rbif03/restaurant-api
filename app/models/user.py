@@ -5,20 +5,6 @@ from pydantic import AfterValidator, BaseModel, EmailStr
 from models.base import BaseReadSchema, BaseCreateSchema, BaseUpdateSchema
 
 
-def validate_br_phone(v: str) -> str:
-    cleaned = re.sub(r"[\s\-\(\)]", "", v)
-    cleaned = re.sub(r"^\+?55", "", cleaned)
-
-    pattern = r"^([1-9][1-9])(9\d{8}|\d{8})$"
-    if not re.fullmatch(pattern, cleaned):
-        raise ValueError(
-            "Invalid Brazilian phone number. Expected DDD + 8 or 9 digits, "
-            "e.g. '11987654321' or '1133334444'"
-        )
-
-    return cleaned
-
-
 def validate_full_name(value: str) -> str:
     # 1. Strip accidental leading/trailing whitespace
     cleaned_name = value.strip()
@@ -51,31 +37,27 @@ class UserReadInternal(BaseModel):
 
 class UserRead(BaseReadSchema):
     admin: bool
-    email: EmailStr
+    username: str
     name: FullName
-    phone: PhoneNumber
     hashed_password: str
 
 
 class UserCreate(BaseCreateSchema):
-    email: EmailStr
+    username: str
     name: FullName
-    phone: PhoneNumber
     hashed_password: str
     # Shouldn't be possible to tell if the user is admin in user creation.
 
 
 class UserCreateRequest(BaseModel):
-    email: EmailStr
+    username: str
     name: FullName
-    phone: PhoneNumber
     password: str
     # Shouldn't be possible to tell if the user is admin in user creation.
 
 
 class UserUpdate(BaseUpdateSchema):
-    email: Optional[EmailStr] = None
+    username: str
     name: Optional[FullName] = None
-    phone: Optional[PhoneNumber] = None
     hashed_password: Optional[str]
     # Shouldn't be possible to tell if the user is admin in user creation.

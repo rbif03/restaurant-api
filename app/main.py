@@ -1,8 +1,11 @@
+from dotenv import load_dotenv
 from fastapi import FastAPI
 import psycopg
 
 from api_routers.cart import router as cart_router
 from db.connect import get_connstr
+
+load_dotenv()
 
 conn_str = get_connstr()
 db_conn = psycopg.connect(conn_str)

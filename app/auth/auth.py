@@ -15,7 +15,7 @@ from db.query_builder import PGQuery
 from db.exceptions import DatabaseError
 from models.user import UserRead, UserReadInternal
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/signin")
 
 
 def hash_password(plain_password: str) -> str:
@@ -34,11 +34,13 @@ def verify_password(plain: str, hashed: str) -> bool:
     return password_hasher.verify(plain, hashed)
 
 
-def get_user_from_db(db: Connection, username: str, username_field="email") -> UserRead:
+def get_user_from_db(
+    db: Connection, username: str, username_field="username"
+) -> UserRead:
     """Retrieve a user by their authentication identifier.
 
     OAuth2 always provides the identifier as `username`; `username_field` maps
-    it to the corresponding database column (e.g. `"email"`).
+    it to the corresponding database column (e.g. `"username"`, `"email"`).
 
     Raises:
         InvalidUserError: If no matching user exists.
