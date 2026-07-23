@@ -5,10 +5,10 @@ from pydantic import BaseModel
 
 import auth.auth as auth
 from auth.exceptions import InvalidPasswordError, InvalidUserError
-from db.connect import get_db_conn
 from db.exceptions import DatabaseError, UsernameAlreadyTakenError
 from db.queries.users import insert_user
 from models.user import UserCreate, UserCreateRequest, UserCreateResponse
+from services.db import get_db_conn
 
 router = APIRouter()
 

@@ -3,10 +3,10 @@ from psycopg import Connection
 from psycopg.rows import dict_row
 from pypika import PostgreSQLQuery, Table
 
-from db.connect import get_db_conn
 from db.exceptions import DatabaseError, ItemNotFoundError
 from db.queries.items import get_items, get_item_by_id
 from models.item import ItemRead
+from services.db import get_db_conn
 
 router = APIRouter()
 

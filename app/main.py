@@ -6,7 +6,7 @@ from api_routers.auth import router as auth_router
 from api_routers.cart import router as cart_router
 from api_routers.items import router as items_router
 from api_routers.orders import router as orders_router
-from db.connect import get_connstr
+from services.db import get_connstr
 
 load_dotenv()
 

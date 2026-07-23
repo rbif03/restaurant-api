@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg import Connection
 
 from auth.auth import get_user_from_token
-from db.connect import get_db_conn
 from db.exceptions import (
     DatabaseError,
     EmptyCartError,
@@ -32,6 +31,7 @@ from models.cart_item import (
 from models.order import OrderExtended
 from models.order_item import OrderItemCreate
 from models.user import UserReadInternal
+from services.db import get_db_conn
 
 router = APIRouter()
 

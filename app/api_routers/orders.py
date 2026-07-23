@@ -4,12 +4,12 @@ from fastapi import APIRouter, Depends, HTTPException
 from psycopg import Connection
 
 from auth.auth import get_user_from_token
-from db.connect import get_db_conn
 from db.exceptions import DatabaseError, OrderNotFoundError
 from db.queries.orders import get_user_orders, get_order_items_by_order_id
 from models.order import OrderRead
 from models.order_item import OrderItemReadExtended
 from models.user import UserReadInternal
+from services.db import get_db_conn
 
 router = APIRouter()
 

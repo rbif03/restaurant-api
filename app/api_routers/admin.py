@@ -5,11 +5,11 @@ from psycopg import Connection
 from pydantic import PositiveInt
 
 from auth.auth import get_admin_user
-from db.connect import get_db_conn
 from db.exceptions import DatabaseError, NonExistingOrderError
 from db.queries.orders import get_orders_by_status, update_order_status
 from models.order import OrderRead, OrderStatus, OrderUpdate
 from models.user import UserReadInternal
+from services.db import get_db_conn
 
 router = APIRouter()
 
