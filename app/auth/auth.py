@@ -15,6 +15,7 @@ from auth.exceptions import InvalidPasswordError, InvalidUserError, InvalidToken
 from db.query_builder import PGQuery
 from db.exceptions import DatabaseError
 from models.user import UserRead, UserReadInternal
+from services.ssm import ssm_get_parameter
 
 logger = logging.getLogger(__name__)
 
@@ -87,11 +88,13 @@ def create_access_token(user: UserReadInternal) -> str:
     to_encode = {"sub": str(user.id), "admin": user.admin}  # Subject must be a string
 
     expire = datetime.now(timezone.utc) + timedelta(
-        minutes=int(os.getenv("JWT_TOKEN_EXPIRE_MINUTES"))
+        minutes=int(ssm_get_parameter("/restaurant-api/jwt/expire-minutes"))
     )
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
-        to_encode, os.getenv("JWT_SECRET_KEY"), algorithm=os.getenv("JWT_ALGORITHM")
+        to_encode,
+        ssm_get_parameter("/restaurant-api/jwt/secret-key"),
+        algorithm=ssm_get_parameter("/restaurant-api/jwt/algorithm"),
     )
     return encoded_jwt
 
@@ -100,7 +103,9 @@ def get_user_from_token(token: str = Depends(oauth2_scheme)) -> UserReadInternal
     # This function is called before the route code, so it's reasonable raise http exceptions
     try:
         payload = jwt.decode(
-            token, os.getenv("JWT_SECRET_KEY"), algorithms=[os.getenv("JWT_ALGORITHM")]
+            token,
+            ssm_get_parameter("/restaurant-api/jwt/secret-key"),
+            algorithms=[ssm_get_parameter("/restaurant-api/jwt/algorithm")],
         )
         user_id = payload.get("sub")
         if user_id is None:

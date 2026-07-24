@@ -6,6 +6,8 @@ import boto3
 from dotenv import load_dotenv
 from fastapi import Request
 
+from services.ssm import ssm_get_parameter
+
 logger = logging.getLogger(__name__)
 
 load_dotenv()
@@ -14,11 +16,11 @@ rds_client = boto3.client("rds")
 
 
 def get_connstr() -> str:
-    ENDPOINT = os.getenv("ENDPOINT")
-    PORT = os.getenv("PORT")
-    USER = os.getenv("USERNAME")
-    REGION = os.getenv("REGION")
-    DBNAME = os.getenv("DBNAME")
+    ENDPOINT = ssm_get_parameter("/restaurant-api/db/endpoint")
+    PORT = ssm_get_parameter("/restaurant-api/db/port")
+    USER = ssm_get_parameter("/restaurant-api/db/username")
+    REGION = boto3.Session().region_name
+    DBNAME = ssm_get_parameter("/restaurant-api/db/name")
 
     token = rds_client.generate_db_auth_token(
         DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION
