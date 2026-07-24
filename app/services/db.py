@@ -1,9 +1,12 @@
 import asyncio
 import os
+import logging
 
 import boto3
 from dotenv import load_dotenv
 from fastapi import Request
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -20,11 +23,10 @@ def get_connstr() -> str:
     token = rds_client.generate_db_auth_token(
         DBHostname=ENDPOINT, Port=PORT, DBUsername=USER, Region=REGION
     )
-
+    logger.info("Obtained DB password.")
     connstr = (
         f"host={ENDPOINT} port={PORT} dbname={DBNAME} user={USER} password={token}"
     )
-    print("Connection string obtained.")
     return connstr
 
 

@@ -1,3 +1,5 @@
+import logging
+
 from psycopg import Connection
 from psycopg.errors import UniqueViolation
 from psycopg.rows import dict_row
@@ -6,6 +8,8 @@ from pypika import Table
 from db.query_builder import PGQuery
 from db.exceptions import DatabaseError, UsernameAlreadyTakenError
 from models.user import UserCreate, UserCreateResponse
+
+logger = logging.getLogger(__name__)
 
 
 def insert_user(db: Connection, data: UserCreate) -> UserCreateResponse:
@@ -23,8 +27,10 @@ def insert_user(db: Connection, data: UserCreate) -> UserCreateResponse:
             return UserCreateResponse(**result)
 
     except UniqueViolation:
+        logger.info(f"Failed to create user '{data.username}': username already taken.")
         raise UsernameAlreadyTakenError
 
     except Exception as e:
-        print(e)
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error("Error adding user to database.")
         raise DatabaseError(str(e))

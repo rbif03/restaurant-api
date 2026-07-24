@@ -1,3 +1,5 @@
+import logging
+
 from dotenv import load_dotenv
 from fastapi import FastAPI
 import psycopg
@@ -8,11 +10,19 @@ from api_routers.items import router as items_router
 from api_routers.orders import router as orders_router
 from services.db import get_connstr
 
+# logging configuration
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(funcName)s() - %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+
 load_dotenv()
 
 conn_str = get_connstr()
 db_conn = psycopg.connect(conn_str)
-print("DB connection established.")
+logger.info("DB connection established.")
 
 
 def handler(event, context):

@@ -36,7 +36,6 @@ def signin(
         )
 
     except Exception as e:
-        print(e)
         raise HTTPException(
             status_code=401,
             detail="Unexpected error when signing in.",

@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from psycopg import Connection
@@ -22,12 +23,15 @@ from models.item import ItemRead
 from models.order import OrderCreate, OrderRead
 from models.order_item import OrderItemCreate, OrderItemRead
 
+logger = logging.getLogger(__name__)
+
 
 def insert_item_to_cart(db: Connection, data: CartItemCreate) -> CartItemRead:
     cart_items = Table("cart_items")
-    print(data.model_dump())
+
     fields, values = zip(*data.model_dump().items())
     query = PGQuery.into(cart_items).columns(*fields).insert(*values).returning("*")
+
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchone()
@@ -36,6 +40,9 @@ def insert_item_to_cart(db: Connection, data: CartItemCreate) -> CartItemRead:
 
     except UniqueViolation as e:
         db.rollback()
+        logger.info(
+            f"Failed to add item to cart: {str(e)}. Rolling back transaction and raising ItemAlreadyInCartError."
+        )
         raise ItemAlreadyInCartError(str(e))
 
     except ForeignKeyViolation as e:
@@ -43,10 +50,14 @@ def insert_item_to_cart(db: Connection, data: CartItemCreate) -> CartItemRead:
         # However, the authentication schema validates that the user exists,
         # so this should only be raised when a non-existent item is passed.
         db.rollback()
+        logger.info(
+            f"Failed to add item to cart: {str(e)}. Rolling back transaction and raising NonExistingItemError."
+        )
         raise NonExistingItemError(str(e))
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(e)
 
 
@@ -68,6 +79,7 @@ def update_cart_item(
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
     if not result:
@@ -104,6 +116,7 @@ def get_cart_items_with_item_data(
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
     return [CartItemReadWithItem.from_prefixed_row(row) for row in result]
@@ -125,6 +138,7 @@ def create_new_pending_order(
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
     return OrderRead(**result)
@@ -140,6 +154,7 @@ def get_cart_items(db: Connection, user_id: int) -> List[CartItemRead]:
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
     return [CartItemRead(**row) for row in result]
@@ -154,6 +169,7 @@ def attribute_items_to_order(
     query = (
         PGQuery.into(order_items).columns(fields).insert(*insert_data).returning("*")
     )
+
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchall()
@@ -162,6 +178,7 @@ def attribute_items_to_order(
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
     return [OrderItemRead(**row) for row in result]
@@ -175,7 +192,7 @@ def clear_cart(db: Connection, user_id: int, commit: bool = False):
         .where(cart_items.user_id == user_id)
         .returning("*")
     )
-    print("clear cart query:\n", str(query))
+
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchall()
@@ -184,6 +201,7 @@ def clear_cart(db: Connection, user_id: int, commit: bool = False):
 
     except Exception as e:
         db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
     return

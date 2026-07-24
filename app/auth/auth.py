@@ -1,4 +1,5 @@
 import os
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException
@@ -14,6 +15,8 @@ from auth.exceptions import InvalidPasswordError, InvalidUserError, InvalidToken
 from db.query_builder import PGQuery
 from db.exceptions import DatabaseError
 from models.user import UserRead, UserReadInternal
+
+logger = logging.getLogger(__name__)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/signin")
 
@@ -57,6 +60,8 @@ def get_user_from_db(
             result = cur.execute(str(query)).fetchone()
 
     except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(f"Unexpected db error when getting user id={username}.")
         raise DatabaseError("Unexpected database error happened.")
 
     if not result:
@@ -69,7 +74,7 @@ def authenticate_user(db: Connection, username: str, password: str) -> UserReadI
     try:
         user = get_user_from_db(db, username)
     except Exception as e:
-        print(e)
+        # Don't log expected login failures; DB errors are logged separately.
         raise e
 
     if verify_password(password, user.hashed_password):

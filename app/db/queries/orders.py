@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import List, Optional
 
@@ -13,6 +14,8 @@ from db.exceptions import DatabaseError, OrderNotFoundError
 from models.item import ItemRead
 from models.order import OrderRead, OrderStatus
 from models.order_item import OrderItemRead, OrderItemReadExtended
+
+logger = logging.getLogger(__name__)
 
 
 def get_user_orders(db: Connection, user_id: int) -> List[OrderRead]:
@@ -30,6 +33,8 @@ def get_user_orders(db: Connection, user_id: int) -> List[OrderRead]:
             return [OrderRead(**order) for order in result]
 
     except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
 
@@ -51,6 +56,8 @@ def get_orders_by_status(
             return [OrderRead(**order) for order in result]
 
     except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
 
@@ -71,15 +78,17 @@ def update_order_status(
         .where(orders.id == order_id)
         .returning("*")
     )
+
     try:
         with db.cursor(row_factory=dict_row) as cur:
-            result = cur.execute(query).fetchone()
+            result = cur.execute(str(query)).fetchone()
         if not result:
             raise OrderNotFoundError(f"Order {order_id} not found.")
 
         return OrderRead(**result)
 
     except Exception as e:
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
 
@@ -109,7 +118,6 @@ def get_order_items_by_order_id(
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchall()
-            print(result)
             if not result:
                 raise OrderNotFoundError("Order not found or doesn't belong to user.")
             return [
@@ -121,4 +129,6 @@ def get_order_items_by_order_id(
         raise e
 
     except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))

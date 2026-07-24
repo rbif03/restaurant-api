@@ -1,3 +1,4 @@
+import logging
 from typing import List
 
 from psycopg import Connection
@@ -8,10 +9,13 @@ from db.query_builder import PGQuery
 from db.exceptions import DatabaseError, ItemNotFoundError
 from models.item import ItemRead
 
+logger = logging.getLogger(__name__)
+
 
 def get_items(db: Connection, category) -> List[ItemRead]:
     items = Table("items")
     query = PGQuery.from_(items).select("*")
+
     if category is not None:
         query = query.where(items.category == category)
 
@@ -21,6 +25,8 @@ def get_items(db: Connection, category) -> List[ItemRead]:
             return [ItemRead(**item) for item in result]
 
     except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
 
 
@@ -39,4 +45,6 @@ def get_item_by_id(db: Connection, item_id) -> ItemRead:
         raise e
 
     except Exception as e:
+        db.rollback()  # reset transaction state so it doesn't block subsequent requests
+        logger.error(str(e))
         raise DatabaseError(str(e))
