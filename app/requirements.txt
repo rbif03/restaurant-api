@@ -1,0 +1,8 @@
+fastapi[standard]
+pwdlib[argon2]
+pyjwt
+pydantic==2.13.4
+psycopg[binary]
+pypika
+mangum
+# boto3  # Uncomment for local development with AWS services

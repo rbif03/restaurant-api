@@ -25,7 +25,7 @@ db_conn = psycopg.connect(conn_str)
 logger.info("DB connection established.")
 
 
-def handler(event, context):
+def handler(event, context, lambda_execution: bool = True):
     app = FastAPI()
     app.state.db_conn = db_conn
     app.include_router(auth_router, prefix="/auth")
@@ -33,13 +33,19 @@ def handler(event, context):
     app.include_router(items_router, prefix="/items")
     app.include_router(orders_router, prefix="/orders")
 
-    import uvicorn
+    if lambda_execution:
+        from mangum import Mangum
 
-    # Pass the import string path rather than the raw object when using reload=True
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+        mangum_handler = Mangum(app)
+        return mangum_handler(event, context)
+
+    else:  # local execution
+        import uvicorn
+
+        uvicorn.run(app, host="127.0.0.1", port=8000)
 
 
 if __name__ == "__main__":
     event = {}
     context = None
-    handler(event, context)
+    handler(event, context, lambda_execution=False)

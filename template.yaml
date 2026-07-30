@@ -1,0 +1,45 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: AWS SAM template for restaurant-api definition
+Parameters:
+  LambdaDeployTimestamp:
+    Description: Identifier of the version of the zipped lambda in s3.
+    Type: Number
+Resources:
+  ApiGatewayRestaurantApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Policy: {
+        "Version":"2012-10-17",
+        "Statement":[
+          {
+            "Sid": "DenyEverythingForTesting",
+            "Effect":"Deny",
+            "Action":"*",
+            "Resource":"*"
+          }
+        ]
+      }
+      AlwaysDeploy: true
+      StageName: prod
+      ApiKeySourceType: HEADER
+      EndpointConfiguration: REGIONAL
+  RestaurantApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Policies:
+        - AWSLambdaBasicExecutionRole  # Provides write permissions to CloudWatch Logs.
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: any
+            RestApiId:
+              Ref: ApiGatewayRestaurantApi
+      Runtime: python3.14
+      PackageType: Zip
+      CodeUri:
+        Bucket: rbif-restaurant-api
+        Key: !Sub "scripts/app_${LambdaDeployTimestamp}.zip"
+      Handler: app.main.handler
