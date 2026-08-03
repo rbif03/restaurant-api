@@ -3,14 +3,12 @@ import os
 import logging
 
 import boto3
-from dotenv import load_dotenv
 from fastapi import Request
 
 from services.ssm import ssm_get_parameter
 
 logger = logging.getLogger(__name__)
 
-load_dotenv()
 
 rds_client = boto3.client("rds")
 

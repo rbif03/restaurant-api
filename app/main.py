@@ -1,6 +1,5 @@
 import logging
 
-from dotenv import load_dotenv
 from fastapi import FastAPI
 import psycopg
 
@@ -17,8 +16,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-load_dotenv()
 
 conn_str = get_connstr()
 db_conn = psycopg.connect(conn_str)
