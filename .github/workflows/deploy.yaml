@@ -53,3 +53,4 @@ jobs:
             --parameter-overrides \
               LambdaDeployTimestamp=$CURRENT_TIMESTAMP \
             --no-execute-changeset \
+            --capabilities CAPABILITY_IAM \
