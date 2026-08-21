@@ -9,17 +9,6 @@ Resources:
   ApiGatewayRestaurantApi:
     Type: AWS::Serverless::Api
     Properties:
-      Policy: {
-        "Version":"2012-10-17",
-        "Statement":[
-          {
-            "Sid": "DenyEverythingForTesting",
-            "Effect":"Deny",
-            "Action":"*",
-            "Resource":"*"
-          }
-        ]
-      }
       AlwaysDeploy: true
       StageName: prod
       ApiKeySourceType: HEADER
@@ -29,6 +18,8 @@ Resources:
     Properties:
       Policies:
         - AWSLambdaBasicExecutionRole  # Provides write permissions to CloudWatch Logs.
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/restaurant-api-access-ssm-parameters-policy
+        - !Sub arn:aws:iam::${AWS::AccountId}:policy/restaurant-api-rds-aurora-connect-policy
       Events:
         ApiEvent:
           Type: Api
@@ -37,9 +28,10 @@ Resources:
             Method: any
             RestApiId:
               Ref: ApiGatewayRestaurantApi
+      Timeout: 60
       Runtime: python3.14
       PackageType: Zip
       CodeUri:
         Bucket: rbif-restaurant-api
         Key: !Sub "scripts/app_${LambdaDeployTimestamp}.zip"
-      Handler: app.main.handler
+      Handler: main.handler

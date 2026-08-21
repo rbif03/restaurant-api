@@ -1,0 +1,55 @@
+name: Deploy Lambda
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  S3_BUCKET: rbif-restaurant-api/scripts
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set current timestamp
+        id: timestamp
+        run: echo "CURRENT_TIMESTAMP=$(date +%s)" >> "$GITHUB_ENV"
+
+      - name: Install Dependencies
+        run: |
+          cd app
+          pip install -r requirements.txt -t .
+          cd ..
+
+      - name: Zip contents of app/
+        run: |
+          cd app
+          zip -r ../app_${{ env.CURRENT_TIMESTAMP }}.zip * 
+          cd ..
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.DEPLOY_USER_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.DEPLOY_USER_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Upload zip to S3
+        run: |
+          aws s3 cp app_${{ env.CURRENT_TIMESTAMP }}.zip \
+            s3://${{ env.S3_BUCKET }}/app_${{ env.CURRENT_TIMESTAMP }}.zip
+
+      - name: Deploy CloudFormation stack
+        run: |
+          aws cloudformation deploy \
+            --stack-name restaurant-api \
+            --template-file template.yaml \
+            --parameter-overrides \
+              LambdaDeployTimestamp=$CURRENT_TIMESTAMP \
+            --no-execute-changeset \
