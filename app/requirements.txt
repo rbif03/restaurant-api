@@ -1,8 +1,9 @@
-fastapi[standard]
+fastapi=0.139.0  # use fastapi[standard] for local
+pydantic==2.13.4
+psycopg[binary]==3.3.4
+pypika==0.51.1
+mangum==0.21.0
 pwdlib[argon2]
 pyjwt
-pydantic==2.13.4
-psycopg[binary]
-pypika
-mangum
 # boto3  # Uncomment for local development with AWS services
+#
