@@ -13,7 +13,7 @@ Resources:
       StageName: prod
       EndpointConfiguration: REGIONAL
       Auth:
-        Authorizers: AWS_IAM
+        DefaultAuthorizer: AWS_IAM
   RestaurantApiFunction:
     Type: AWS::Serverless::Function
     Properties:
