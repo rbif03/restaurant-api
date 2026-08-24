@@ -4,12 +4,14 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
+from fastapi.security.utils import get_authorization_scheme_param
 import jwt
 from jwt.exceptions import InvalidTokenError
 from pwdlib import PasswordHash
 from psycopg import Connection
 from psycopg.rows import dict_row
 from pypika import Table
+from starlette.requests import Request
 
 from auth.exceptions import InvalidPasswordError, InvalidUserError, InvalidTokenPayload
 from db.query_builder import PGQuery
@@ -19,7 +21,22 @@ from services.ssm import ssm_get_parameter
 
 logger = logging.getLogger(__name__)
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/signin")
+
+class OAuth2CustomPasswordBearer(OAuth2PasswordBearer):
+    async def __call__(self, request: Request) -> str | None:
+        # Just changed the original "Authorization" header to "API-Authorization"
+        authorization = request.headers.get("API-Authorization")
+        scheme, param = get_authorization_scheme_param(authorization)
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise self.make_not_authenticated_error()
+            else:
+                return None
+        return param
+
+
+# Use OAuth2PasswordBearer to make the auth header be "Authorization" again.
+oauth2_scheme = OAuth2CustomPasswordBearer(tokenUrl="auth/signin")
 
 
 def hash_password(plain_password: str) -> str:
