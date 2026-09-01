@@ -21,8 +21,19 @@ from services.ssm import ssm_get_parameter
 
 logger = logging.getLogger(__name__)
 
+class CustomHeaderOAuth2PasswordBearer(OAuth2PasswordBearer):
+    # Update the header to use from "Authorization" to "API-Authorization"
+    async def __call__(self, request: Request) -> str | None:
+        authorization = request.headers.get("API-Authorization")
+        scheme, param = get_authorization_scheme_param(authorization)
+        if not authorization or scheme.lower() != "bearer":
+            if self.auto_error:
+                raise self.make_not_authenticated_error()
+            else:
+                return None
+        return param
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/signin")
+oauth2_scheme = CustomHeaderOAuth2PasswordBearer(tokenUrl="auth/signin")
 
 
 def hash_password(plain_password: str) -> str:
