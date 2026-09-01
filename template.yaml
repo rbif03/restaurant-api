@@ -14,12 +14,12 @@ Resources:
       EndpointConfiguration: REGIONAL
       Auth:
         DefaultAuthorizer: AWS_IAM
-      MethodSettings:
-        - HttpMethod: "*"
-          ResourcePath: "/*"
-          LoggingLevel: INFO
-          DataTraceEnabled: true
-          MetricsEnabled: true
+      # MethodSettings:
+      #   - HttpMethod: "*"
+      #     ResourcePath: "/*"
+      #     LoggingLevel: INFO
+      #     DataTraceEnabled: true
+      #     MetricsEnabled: true
   RestaurantApiFunction:
     Type: AWS::Serverless::Function
     Properties:
