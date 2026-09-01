@@ -8,6 +8,7 @@ from api_routers.auth import router as auth_router
 from api_routers.cart import router as cart_router
 from api_routers.items import router as items_router
 from api_routers.orders import router as orders_router
+from api_routers.test import router as test_router
 from services.db import get_connstr
 
 # logging configuration
@@ -31,6 +32,7 @@ def handler(event, context, lambda_execution: bool = True):
     app.include_router(cart_router, prefix="/cart")
     app.include_router(items_router, prefix="/items")
     app.include_router(orders_router, prefix="/orders")
+    app.include_router(test_router, prefix="/test")
 
     if lambda_execution:
         from mangum import Mangum
