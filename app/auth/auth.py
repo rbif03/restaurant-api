@@ -6,7 +6,7 @@ from fastapi import Depends, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from fastapi.security.utils import get_authorization_scheme_param
 import jwt
-from jwt.exceptions import InvalidTokenError
+from jwt.exceptions import InvalidTokenError, ExpiredSignatureError, InvalidSignatureError
 from pwdlib import PasswordHash
 from psycopg import Connection
 from psycopg.rows import dict_row
@@ -120,6 +120,20 @@ def get_user_from_token(token: str = Depends(oauth2_scheme)) -> UserReadInternal
 
         return UserReadInternal(
             id=payload.get("sub"), admin=payload.get("admin", False)
+        )
+
+    except ExpiredSignatureError as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Token expired, sign in again to obtain a new one: ExpiredSignatureError",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    except InvalidSignatureError as e:
+        raise HTTPException(
+            status_code=401,
+            detail="Token cannot be decoded because it failed validation: InvalidSignatureError",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
     except InvalidTokenError as e:
