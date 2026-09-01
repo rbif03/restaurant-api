@@ -12,7 +12,7 @@ from pypika.terms import ValueWrapper
 from db.query_builder import PGQuery, prefix_fields_with_table
 from db.exceptions import DatabaseError, OrderNotFoundError
 from models.item import ItemRead
-from models.order import OrderRead, OrderStatus
+from models.order import OrderRead, OrderUpdate
 from models.order_item import OrderItemRead, OrderItemReadExtended
 
 logger = logging.getLogger(__name__)
@@ -62,7 +62,7 @@ def get_orders_by_status(
 
 
 def update_order_status(
-    db: Connection, order_id: int, status: OrderStatus
+    db: Connection, order_id: int, order_update: OrderUpdate
 ) -> OrderRead:
     """
     This function is supposed to be used by admin routes only, since it doesn't validate the owner of the order.
@@ -74,7 +74,12 @@ def update_order_status(
     orders = Table("orders")
     query = (
         PGQuery.update(orders)
-        .set(orders.status, status)
+        .setmany(
+            {
+                orders.status: order_update.status, 
+                orders.updated_at: order_update.updated_at
+            }
+        )
         .where(orders.id == order_id)
         .returning("*")
     )
@@ -82,8 +87,11 @@ def update_order_status(
     try:
         with db.cursor(row_factory=dict_row) as cur:
             result = cur.execute(str(query)).fetchone()
+            
         if not result:
             raise OrderNotFoundError(f"Order {order_id} not found.")
+
+        db.commit()
 
         return OrderRead(**result)
 

@@ -3,6 +3,7 @@ import logging
 from fastapi import FastAPI
 import psycopg
 
+from api_routers.admin import router as admin_router
 from api_routers.auth import router as auth_router
 from api_routers.cart import router as cart_router
 from api_routers.items import router as items_router
@@ -25,6 +26,7 @@ logger.info("DB connection established.")
 def handler(event, context, lambda_execution: bool = True):
     app = FastAPI()
     app.state.db_conn = db_conn
+    app.include_router(admin_router, prefix="/admin")
     app.include_router(auth_router, prefix="/auth")
     app.include_router(cart_router, prefix="/cart")
     app.include_router(items_router, prefix="/items")

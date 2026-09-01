@@ -5,7 +5,7 @@ from psycopg import Connection
 from pydantic import PositiveInt
 
 from auth.auth import get_admin_user
-from db.exceptions import DatabaseError, NonExistingOrderError
+from db.exceptions import DatabaseError, OrderNotFoundError
 from db.queries.orders import get_orders_by_status, update_order_status
 from models.order import OrderRead, OrderStatus, OrderUpdate
 from models.user import UserReadInternal
@@ -39,6 +39,7 @@ def list_orders_by_status(
 
     Raises:
         HTTPException: 500 if an unexpected database error occurs.
+        HTTPException: 403 if not admin.
     """
     try:
         return get_orders_by_status(db, status, hours_ago)
@@ -58,9 +59,9 @@ def change_order_status(
     admin_user: UserReadInternal = Depends(get_admin_user),
 ) -> OrderRead:
     try:
-        return update_order_status(db, order_id, body.status)
+        return update_order_status(db, order_id, body)
 
-    except NonExistingOrderError as e:
+    except OrderNotFoundError as e:
         raise HTTPException(
             status_code=404,
             detail=f"Order not found.",
