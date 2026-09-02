@@ -86,6 +86,10 @@ def get_user_from_db(
 
 
 def authenticate_user(db: Connection, username: str, password: str) -> UserReadInternal:
+    if isinstance(username, str) and isinstance(password, str):
+        logger.info("Received username and password, both strings.")
+    else:
+        logger.error("Could not verify that username and password are strings")
     try:
         user = get_user_from_db(db, username)
     except Exception as e:

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from psycopg import Connection
@@ -9,6 +11,8 @@ from db.exceptions import DatabaseError, UsernameAlreadyTakenError
 from db.queries.users import insert_user
 from models.user import UserCreate, UserCreateRequest, UserCreateResponse
 from services.db import get_db_conn
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

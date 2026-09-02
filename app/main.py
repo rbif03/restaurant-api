@@ -38,6 +38,7 @@ def handler(event, context, lambda_execution: bool = True):
         from mangum import Mangum
 
         mangum_handler = Mangum(app)
+        logger.info(event)
         return mangum_handler(event, context)
 
     else:  # local execution
