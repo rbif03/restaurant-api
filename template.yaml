@@ -35,6 +35,7 @@ Resources:
             Method: any
             RestApiId:
               Ref: ApiGatewayRestaurantApi
+      MemorySize: 256
       Timeout: 60
       Runtime: python3.14
       PackageType: Zip
